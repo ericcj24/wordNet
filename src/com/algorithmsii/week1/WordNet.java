@@ -26,7 +26,8 @@ public class WordNet {
 		}
 	}
 
-	private TreeMap<String, SynsetID> dict;
+	private TreeMap<String, SynsetID> dictSI;
+	private TreeMap<Integer, String> dictIS;
 	private SAP sap;
 
 	// constructor takes the name of the two input files
@@ -35,7 +36,8 @@ public class WordNet {
 			throw new java.lang.IllegalArgumentException();
 		}
 
-		this.dict = new TreeMap<>();
+		this.dictSI = new TreeMap<>();
+		this.dictIS = new TreeMap<>();
 
 		In insynsets = new In(synsets);
 		In inhypernyms = new In(hypernyms);
@@ -48,13 +50,13 @@ public class WordNet {
 			String[] synsetStrs = threeSeg[1].split(" ");
 
 			for (String synsetStr : synsetStrs) {
-				if (dict.containsKey(synsetStr)) {
-					dict.get(synsetStr).addId(synsetid);
+				if (dictSI.containsKey(synsetStr)) {
+					dictSI.get(synsetStr).addId(synsetid);
 				} else {
-					dict.put(synsetStr, new SynsetID(synsetid));
+					dictSI.put(synsetStr, new SynsetID(synsetid));
 				}
 			}
-
+			dictIS.put(synsetid, threeSeg[1]);
 		}
 
 		//82191
@@ -70,7 +72,6 @@ public class WordNet {
 
 		// check make sure it is a rooted DAG
 		// no circle, has root
-		StdOut.println("E:" + digraph.E() + ", V:"+digraph.V());
 
 		DigraphCircleDetection digraphCircleDetection = new DigraphCircleDetection(digraph);
 		boolean hasCircle = digraphCircleDetection.hasCircle();
@@ -108,7 +109,7 @@ public class WordNet {
 				dfs(digraphcp, vv);
 				visitedFromThisVetex.remove(vv);
 			}
-			if (!digraphcp.adj(v).iterator().hasNext()) {
+			if (digraphcp.outdegree(v)==0) {
 				// this vertex has no more adj
 				if (root == -1) {
 					root = v;
@@ -129,7 +130,7 @@ public class WordNet {
 
 	// returns all WordNet nouns
 	public Iterable<String> nouns() {
-		return dict.keySet();
+		return dictSI.keySet();
 	}
 
 	// is the word a WordNet noun?
@@ -139,7 +140,7 @@ public class WordNet {
 			throw new java.lang.IllegalArgumentException();
 		}
 
-		return dict.containsKey(word);
+		return dictSI.containsKey(word);
 	}
 
 	// distance between nounA and nounB (defined below)
@@ -152,7 +153,7 @@ public class WordNet {
 			throw new java.lang.IllegalArgumentException();
 		}
 
-		int distance = sap.length(dict.get(nounA).getId(), dict.get(nounB).getId());
+		int distance = sap.length(dictSI.get(nounA).getId(), dictSI.get(nounB).getId());
 
 		return distance;
 	}
@@ -169,17 +170,9 @@ public class WordNet {
 			throw new java.lang.IllegalArgumentException();
 		}
 
-		int ancestor = sap.ancestor(dict.get(nounA).getId(), dict.get(nounB).getId());
+		int ancestor = sap.ancestor(dictSI.get(nounA).getId(), dictSI.get(nounB).getId());
 
-		String ancestorStr=null;
-		for (String key : dict.keySet()) {
-			for (int synset : dict.get(key).getId()) {
-				if (synset == ancestor) {
-					ancestorStr = key;
-					break;
-				}
-			}
-		}
+		String ancestorStr = dictIS.get(ancestor);
 
 		return ancestorStr;
 	}
